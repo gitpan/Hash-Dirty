@@ -3,7 +3,7 @@
 use Test::More qw/no_plan/;
 use Test::Deep;
 
-use Hash::Dirty;
+use Hash::Dirty qw/hash/;
 
 my %hash;
 tie %hash, qw/Hash::Dirty/, { a => 1 };
@@ -33,5 +33,17 @@ $hash{c} = 3;
 ok((tied %hash)->is_dirty); # Yes, now it's dirty
 cmp_deeply({ (tied %hash)->dirty_slice }, { c => 3 });
 
-my $hash = Hash::Dirty->new;
+my ($object, $hash) = Hash::Dirty->new;
 
+$hash->{a} = 1;
+ok($object->is_dirty);
+$object->reset;
+ok(!$object->is_dirty);
+is($hash, $object->hash);
+cmp_deeply($hash, $object->hash);
+
+$hash = hash;
+
+$hash->{a} = 2;
+ok(tied(%$hash)->is_dirty);
+ok(!$object->is_dirty);

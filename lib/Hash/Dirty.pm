@@ -9,11 +9,11 @@ Hash::Dirty - Keep track of whether a hash is dirty or not
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
@@ -48,14 +48,18 @@ our $VERSION = '0.01';
     # %hash is { a => "hello", b => 2, c => 3 }
     (tied %hash)->dirty_slice } # { c => 3 }
 
-    # Alternatively:
+    # Alternately:
 
     use Hash::Dirty;
 
     my $hash = Hash::Dirty::hash;
-    $hash = Hash::Dirty->new;
+
+    # Also:
     
-    $hash->{a} = 1 # Etc., etc.
+    my ($object, $hash) = Hash::Dirty->new;
+    
+    $hash->{a} = 1; # Etc., etc.
+    $object->is_dirty;
 
 =head1 DESCRIPTION
 
@@ -66,12 +70,34 @@ the contents of supplied values (say a HASH reference, ARRAY reference, or some 
 
 This module was inspired by DBIx::Class::Row
 
+Currently, setting, deleting keys or clearing the hash means that the object will lose history, so it will know
+that something has changed, but not if it is reset back at some later date:
+
+    my ($object, $hash) = Hash::Dirty->new({ a => 1 });
+    $object->is_dirty; # Nope
+
+    $hash->{a} = 2;
+    $object->is_dirty; # Yup
+    
+    $hash->{a} = 1;
+    $object->is_dirty; # Yup, still dirty, even though the original value was 1
+
 =cut
 
+use Scalar::Util qw/weaken/;
+use Sub::Exporter -setup => {
+    exports => [
+        hash => sub { return sub {
+            my ($object, $hash) = __PACKAGE__->new(@_);
+            return $hash;
+        } },
+    ],
+};
 use Tie::Hash;
-use base qw/Tie::StdHash/;
 
-=head1 FUNCTIONS
+use base qw/Tie::ExtraHash/;
+
+=head1 EXPORTS
 
 =head2 hash( <hash> )
 
@@ -79,46 +105,69 @@ Creates a new Hash::Dirty object and returns the tied hash reference, per Hash::
 
 If supplied, will use <hash> as the storage (initializing the object accordingly)
 
-sub hash {
-    return __PACKAGE__->new(@_);
-}
-
 =cut
+
+use constant STORAGE => 0;
+use constant DIRTY => 1;
+use constant HASH => 2;
 
 sub TIEHASH {
     my ($class, $storage) = @_;
     $storage ||= {};
-    return bless { dirty => {}, storage => $storage }, $class;
+    my $self = [];
+    $self->[STORAGE()] = $storage;
+    $self->[DIRTY()] = {};
+    return bless $self, $class;
 }
 
 =head1 METHODS 
 
 =cut
 
-=head2 Hash::Dirty->>new( <hash> )
+=head2 Hash::Dirty->new( <hash> )
 
-Creates a new Hash::Dirty object and returns the tied hash reference.
+Creates and returns a new Hash::Dirty object
 
 If supplied, will use <hash> as the storage (initializing the object accordingly)
+
+In list context, new will return both the object and the "regular" hash:
+
+    my ($object, $hash) = Hash::Dirty->new;
+    $hash->{a} = 1;
+    $object->is_dirty; # Yup, it's dirty
 
 =cut
 
 sub new {
     my $class = shift;
     my %hash;
-    tie %hash, $class, @_;
-    return \%hash;
+    my $self = tie %hash, $class, @_;
+    my $hash = \%hash;
+    $self->[HASH()] = $hash;
+    weaken $self->[HASH()];
+    return wantarray ? ($self, \%hash) : $self;
 }
 
-=head2 $hash->is_dirty
+=head2 $object->hash
+
+Returns a reference to the overlying hash 
+
+=cut
+
+sub hash {
+    my $self = shift;
+    return $self->[HASH()];
+}
+
+=head2 $object->is_dirty
 
 Returns 1 if the hash is dirty at all, 0 otherwise 
 
-=head2 $hash->is_dirty ( <key> )
+=head2 $object->is_dirty ( <key> )
 
 Returns 1 if <key> is dirty, 0 otherwise
 
-=head2 $hash->is_dirty ( $key, $key, ..., )
+=head2 $object->is_dirty ( $key, $key, ..., )
 
 Returns 1 if any <key> is dirty, 0 otherwise
 
@@ -128,7 +177,7 @@ sub is_dirty {
     my $self = shift; 
     if (@_) {
         for my $key (@_) {
-            return 1 if exists $self->{dirty}->{$key};
+            return 1 if exists $self->[DIRTY()]->{$key};
         }
     }
     else {
@@ -137,7 +186,7 @@ sub is_dirty {
     return 0;
 }
 
-=head2 $hash->reset
+=head2 $object->reset
 
 Resets the hash to non-dirty status
 
@@ -147,10 +196,10 @@ This method affects the dirtiness only, it does not erase or alter the hash in a
 
 sub reset {
     my $self = shift; 
-    $self->{dirty} = {};
+    $self->[DIRTY()] = {};
 }
 
-=head2 $hash->dirty
+=head2 $object->dirty
 
 Returns a hash indicating which keys are dirty
 
@@ -160,11 +209,17 @@ In scalar context, returns a hash reference
 
 sub dirty {
     my $self = shift; 
-    my %dirty = %{ $self->{dirty} };
+    my %dirty = %{ $self->[DIRTY()] };
     return wantarray ? %dirty : \%dirty;
 }
 
-=head2 $hash->dirty_slice
+sub _storage {
+    my $self = shift; 
+    my %storage = %{ $self->[STORAGE()] };
+    return wantarray ? %storage : \%storage;
+}
+
+=head2 $object->dirty_slice
 
 Returns a hash slice containg only the dirty keys and values
 
@@ -174,11 +229,11 @@ In scalar context, returns a hash reference
 
 sub dirty_slice {
     my $self = shift; 
-    my %slice = map { $_ => $self->{storage}{$_} } $self->dirty_keys;
+    my %slice = map { $_ => $self->[STORAGE()]{$_} } $self->dirty_keys;
     return wantarray? %slice : \%slice;
 }
 
-=head2 $hash->dirty_keys
+=head2 $object->dirty_keys
 
 Returns a list of dirty keys
 
@@ -186,10 +241,10 @@ Returns a list of dirty keys
 
 sub dirty_keys {
     my $self = shift; 
-    return keys %{ $self->{dirty} };
+    return keys %{ $self->[DIRTY()] };
 }
 
-=head2 $hash->dirty_values
+=head2 $object->dirty_values
 
 Returns a list of dirty values
 
@@ -197,20 +252,66 @@ Returns a list of dirty values
 
 sub dirty_values {
     my $self = shift; 
-    return map { $self->{storage}{$_} } $self->dirty_keys;
+    return map { $self->[STORAGE()]{$_} } $self->dirty_keys;
 }
 
 sub STORE {
     my ($self, $key, $value) = @_;
 
-    my $storage = $self->{storage};
+    my $storage = $self->[STORAGE()];
     my $new = $value;
     my $old = $storage->{$key};
     $storage->{$key} = $new;
     # Taken from DBIx::Class::Row::set_column
-    $self->{dirty}{$key} = 1 if (defined $old ^ defined $new) || (defined $old && $old ne $new);
+    $self->[DIRTY()]{$key} = 1 if (defined $old ^ defined $new) || (defined $old && $old ne $new);
     return $new;
 }
+
+=head2 $object->set( <key>, <value> )
+
+=head2 $object->store( <key>, <value> )
+
+=cut
+
+*set = \&STORE;
+*store = \&STORE;
+
+=head2 $object->get( <key> )
+
+=head2 $object->fetch( <key> )
+
+=cut
+
+*get = \&Tie::ExtraHash::FETCH;
+*fetch = \&Tie::ExtraHash::FETCH;
+
+sub CLEAR {
+    my $self = shift;
+
+    my $storage = $self->[STORAGE()];
+    $self->[DIRTY()]{$_} = 1 for keys %$storage;
+    %$storage = ();
+}
+
+=head2 $object->clear
+
+=cut
+
+*clear = \&Tie::ExtraHash::CLEAR;
+
+sub DELETE {
+    my ($self, $key) = @_;
+
+    my $storage = $self->[STORAGE()];
+    $self->[DIRTY()]{$key} = 1 if exists $storage->{$key};
+    return delete $storage->{$key};
+}
+
+=head2 $object->delete( <key> )
+
+=cut
+
+*delete = \&Tie::ExtraHash::DELETE;
 
 =head1 AUTHOR
 

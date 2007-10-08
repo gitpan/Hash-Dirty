@@ -1,6 +1,6 @@
 ---
 name: Hash-Dirty
-version: 0.01
+version: 0.02
 author:
   - 'Robert Krimen <rkrimen@cpan.org>'
 abstract: Keep track of whether a hash is dirty or not
@@ -13,7 +13,7 @@ build_requires:
 provides:
   Hash::Dirty:
     file: lib/Hash/Dirty.pm
-    version: 0.01
+    version: 0.02
 generated_by: Module::Build version 0.2806
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
