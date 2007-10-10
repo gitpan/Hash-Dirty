@@ -5,6 +5,8 @@ WriteMakefile
           'NAME' => 'Hash::Dirty',
           'VERSION_FROM' => 'lib/Hash/Dirty.pm',
           'PREREQ_PM' => {
+                           'Scalar::Util' => '0',
+                           'Sub::Exporter' => '0',
                            'Test::Deep' => '0',
                            'Test::More' => '0'
                          },

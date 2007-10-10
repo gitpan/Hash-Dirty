@@ -11,6 +11,10 @@ my $builder = Module::Build->new(
         'Test::More' => 0,
         'Test::Deep' => 0,
     },
+    requires => {
+        'Scalar::Util' => 0,
+        'Sub::Exporter' => 0,
+    },
     add_to_cleanup      => [ 'Hash-Dirty-*' ],
     create_makefile_pl => 'traditional',
 );
