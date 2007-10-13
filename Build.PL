@@ -12,7 +12,7 @@ my $builder = Module::Build->new(
         'Test::Deep' => 0,
     },
     requires => {
-        'Tie::Hash' => 0,
+        'Tie::Hash' => "1.00",
         'Scalar::Util' => 0,
         'Sub::Exporter' => 0,
     },

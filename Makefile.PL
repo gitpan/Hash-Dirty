@@ -9,7 +9,7 @@ WriteMakefile
                            'Sub::Exporter' => '0',
                            'Test::Deep' => '0',
                            'Test::More' => '0',
-                           'Tie::Hash' => '0'
+                           'Tie::Hash' => '1.00'
                          },
           'INSTALLDIRS' => 'site',
           'EXE_FILES' => [],
