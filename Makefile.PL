@@ -8,7 +8,8 @@ WriteMakefile
                            'Scalar::Util' => '0',
                            'Sub::Exporter' => '0',
                            'Test::Deep' => '0',
-                           'Test::More' => '0'
+                           'Test::More' => '0',
+                           'Tie::Hash' => '0'
                          },
           'INSTALLDIRS' => 'site',
           'EXE_FILES' => [],

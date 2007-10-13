@@ -1,5 +1,8 @@
+0.022 Tuesday October 09 12:16:06 PDT 2007:
+ - Another dependency update
+
 0.021 Tuesday October 09 12:16:06 PDT 2007:
- - Updated dependencies
+ - Dependency update
 
 0.02 Monday October 08 16:18:49 PDT 2007:
  - Critical update: the version 0.01 did not work in %hash form because of boneheadedness, but should now (using Tie::ExtraHash vs. Tie::StdHash)

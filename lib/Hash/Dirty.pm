@@ -9,11 +9,11 @@ Hash::Dirty - Keep track of whether a hash is dirty or not
 
 =head1 VERSION
 
-Version 0.021
+Version 0.022
 
 =cut
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 =head1 SYNOPSIS
 
